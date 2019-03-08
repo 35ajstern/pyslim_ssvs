@@ -1,0 +1,44 @@
+initialize()
+{
+    //setSeed(23102983034913);
+    initializeSLiMModelType("WF");
+    initializeTreeSeq();
+    initializeMutationRate(1e-8);
+    initializeMutationType("m1", 0.5, "f", 0.0);
+    initializeMutationType("m2", 0.5, "f", 5);
+    m1.convertToSubstitution = F;
+    initializeGenomicElementType("g1", c(m1,m2), c(1.0,0.0));
+    initializeGenomicElement(g1, 0, 199999);
+    initializeRecombinationRate(1e-8);
+}
+
+1 late() { 
+    sim.readFromPopulationFile("/Users/ajstern/projects/slim_testing/test.trees"); 
+    //lines = readFile('/Users/ajstern/projects/slim_testing/test.slim.targets'); 
+	//for (line in lines) 
+	//{
+	//	node = asInteger(line);
+	//	catn(node);
+	//	target = p0.genomes[node];
+	//	target.addNewDrawnMutation(m2, posn);
+	//}
+	//target = p0.genomes[asInteger(lines)];
+	//target.addNewDrawnMutation(m2,41653);
+	
+    mut = sim.mutationsOfType(m1);
+    mut.setSelectionCoeff(0.005);
+    freq = sim.mutationFrequencies(p0,mut);
+    catn(freq);
+}
+
+500 late() {
+    catn("Done.");
+    mut = sim.mutationsOfType(m1);
+    freqs = sim.mutationFrequencies(p0,mut);
+    freq = 1/0.005 * mut.selectionCoeff * freqs;
+    catn(sum(freq));	
+    //catn(sim.mutationsOfType(m1));
+    sim.treeSeqOutput("/Users/ajstern/projects/slim_testing/test.out.trees");
+    sim.simulationFinished();
+}
+
