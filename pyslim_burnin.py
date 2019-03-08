@@ -6,7 +6,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('out',type=str)
 parser.add_argument('-q','--q',action='store_true')
-parser.add_argument('-n','--n',type=int,default=1000,help='diploid sample size')
+parser.add_argument('-n','--n',type=int,default=2000,help='HAPLOID sample size')
+parser.add_argument('-u','--u',type=float,default=1e-8,help='mut rate per bp per gen')
 parser.add_argument('-r','--r',type=float,default=1e-8,help='per bp recomb rate')
 parser.add_argument('-l','--l',type=int,default=2e5,help='length of locus in bp')
 parser.add_argument('-c','--c',type=float,default=0.01,help='minimum MAF of standing var')
@@ -44,7 +45,7 @@ def throw_mut_on_tree(ts):
 		    if mut_n != t.root:
 		        treeloc -= t.branch_length(mut_n)
 		        if treeloc <= 0:
-		            cpicked = t.num_samples(mut_n)/(2*n)
+		            cpicked = t.num_samples(mut_n)/(n)
 		            print(cpicked)
 		            break
 
@@ -71,8 +72,9 @@ def throw_mut_on_tree(ts):
 	#		#print(i) 
 	#		out_slim_targets.write('%d\n'%(i))	
 	#out_slim_targets.close()
-	print('%d / %d' %(np.sum(mut_ts.genotype_matrix()),2*n))
-	freq = np.sum(mut_ts.genotype_matrix())/(2*n)
+	print(mut_ts.genotype_matrix())
+	print('%d / %d' %(np.sum(mut_ts.genotype_matrix()),n))
+	freq = np.sum(mut_ts.genotype_matrix())/(n)
 
 	return mut_base, freq, mut_ts 
 
@@ -93,7 +95,7 @@ basename = args.out
 s = args.s
 
 c = args.c
-w = np.sum(1/np.arange(np.ceil(2*args.n*c),np.floor(2*args.n*(1-c))+1))
+w = np.sum(1/np.arange(np.ceil(args.n*c),np.floor(args.n*(1-c))+1))
 if args.pg != None:
 	I = args.pg[0]
 	k = args.pg[1]
@@ -102,7 +104,7 @@ if args.pg != None:
 	print(I,k,beta,s)
 np.savetxt(basename+'.metadata',np.array([s,freq,mut_base]))
 
-print('./slim -d \"basename=\'%s\'\" ssv.slim'%(basename))
+print('./slim -d r=%.3e -d l=%d -d u=%.3e -d \"basename=\'%s\'\" -d s=%f ssv.slim'%(args.r,args.l,args.u,basename,s))
 
 
 
