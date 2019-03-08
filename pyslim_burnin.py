@@ -10,6 +10,8 @@ parser.add_argument('-n','--n',type=int,default=1000,help='diploid sample size')
 parser.add_argument('-r','--r',type=float,default=1e-8,help='per bp recomb rate')
 parser.add_argument('-l','--l',type=int,default=2e5,help='length of locus in bp')
 parser.add_argument('-c','--c',type=float,default=0.01,help='minimum MAF of standing var')
+parser.add_argument('-s','--s',type=float,default=0,help='selection coefficient. only use under Mendelian Inheritance model; do not use this option with --pg!')
+parser.add_argument('--pg',type=float,nargs=2,default=None,help='Use for polygenic selection. arg1 is I, the selection differential on trait; arg2 is k, the num loci. s is random (see e.g. Edge&Coop 2018)')
 args = parser.parse_args()
 
 def throw_mut_on_tree(ts):
@@ -70,14 +72,15 @@ def throw_mut_on_tree(ts):
 	#		out_slim_targets.write('%d\n'%(i))	
 	#out_slim_targets.close()
 	print('%d / %d' %(np.sum(mut_ts.genotype_matrix()),2*n))
+	freq = np.sum(mut_ts.genotype_matrix())/(2*n)
 
-	return mut_base, mut_ts 
+	return mut_base, freq, mut_ts 
 
 
 ts = pyslim.annotate_defaults(msprime.simulate(args.n, recombination_rate = args.r, length=args.l),
                               model_type="WF", slim_generation=1)
 
-mut_base, mut_ts = throw_mut_on_tree(ts)
+mut_base, freq, mut_ts = throw_mut_on_tree(ts)
 
 # save treeseq 
 mut_ts.dump("%s.trees"%(args.out))
@@ -86,6 +89,18 @@ mut_ts.dump("%s.trees"%(args.out))
 basename = args.out
 #out_slim.write('./slim -d \"basename=\'%s\'\" ssv.slim'%(basename))
 #out_slim.close()
+
+s = args.s
+
+c = args.c
+w = np.sum(1/np.arange(np.ceil(2*args.n*c),np.floor(2*args.n*(1-c))+1))
+if args.pg != None:
+	I = args.pg[0]
+	k = args.pg[1]
+	beta = np.random.normal(0,np.sqrt(w/k))	
+	s = beta * I
+	print(I,k,beta,s)
+np.savetxt(basename+'.metadata',np.array([s,freq,mut_base]))
 
 print('./slim -d \"basename=\'%s\'\" ssv.slim'%(basename))
 
