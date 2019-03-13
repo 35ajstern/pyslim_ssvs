@@ -1,0 +1,48 @@
+initialize()
+{
+    initializeSLiMModelType("WF");
+    initializeTreeSeq();
+    initializeMutationRate(u);
+    initializeMutationType("m1", 0.5, "f", 0.0);
+    m1.convertToSubstitution = F;
+    initializeGenomicElementType("g1", c(m1), c(1.0));
+    initializeGenomicElement(g1, 0, l-1);
+    initializeRecombinationRate(r);
+}
+
+// Create the ancestral African population
+1 late() { 
+   sim.readFromPopulationFile(basename+".trees");
+   mut = sim.mutationsOfType(m1);
+   mut.setSelectionCoeff(s);
+   freq = sim.mutationFrequencies(p0,mut);
+   p0.setSubpopulationSize(1861); }
+
+// Expand the African population to 14474
+// This occurs 148000 years (5920) generations ago
+966:1553 { 
+	t = sim.generation;
+	p0size = asInteger(1032*(1.0*9300/1032)^(1.0*(t-966)/(587)));
+	p0.setSubpopulationSize(p0size);
+}
+
+1554:1759 {
+	t = sim.generation;
+	p0size = asInteger(9300*(1.0*512000/9300)^(1.0*(t-1554)/(205)));
+	p0.setSubpopulationSize(p0size);
+}
+
+1760 {
+    //catn("Done.");
+    mut = sim.mutationsOfType(m1);
+    freqs = sim.mutationFrequencies(p0,mut);
+    freq = 1/s * mut.selectionCoeff * freqs;
+    //catn(sum(freq));
+    //sim.treeSeqOutput(basename+".out.trees");
+    p0.setSubpopulationSize(n);
+}
+
+1761 late(){
+    sim.treeSeqOutput(basename+".out.trees");
+    sim.simulationFinished();
+}

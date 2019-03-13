@@ -1,6 +1,5 @@
 initialize()
 {
-    //setSeed(23102983034913);
     initializeSLiMModelType("WF");
     initializeTreeSeq();
     initializeMutationRate(u);
@@ -13,18 +12,23 @@ initialize()
 
 1 late() { 
     sim.readFromPopulationFile(basename+".trees"); 
+    p0.setSubpopulationSize(10000);
     mut = sim.mutationsOfType(m1);
     mut.setSelectionCoeff(s);
     freq = sim.mutationFrequencies(p0,mut);
-    catn(freq);
+    //catn(freq);
 }
 
-100 late() {
-    catn("Done.");
+500 late() {
+    //catn("Done.");
     mut = sim.mutationsOfType(m1);
     freqs = sim.mutationFrequencies(p0,mut);
     freq = 1/s * mut.selectionCoeff * freqs;
-    catn(sum(freq));	
+    //catn(sum(freq));	
+    p0.setSubpopulationSize(n);
+}
+
+501 late() { 
     sim.treeSeqOutput(basename+".out.trees");
     sim.simulationFinished();
 }

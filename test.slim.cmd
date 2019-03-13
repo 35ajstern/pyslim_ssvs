@@ -1,0 +1,1 @@
+/home/ajstern/slim -d r=1.000e-08 -d l=100 -d u=0.000e+00 -d "basename='test'" -d s=0.100000 -d n=200 ssv.slim

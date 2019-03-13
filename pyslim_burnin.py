@@ -5,20 +5,41 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('out',type=str)
-parser.add_argument('-q','--q',action='store_true')
+parser.add_argument('-q','--q',action='store_true',help='option to not print progress to stdout')
 parser.add_argument('-n','--n',type=int,default=2000,help='HAPLOID sample size')
+parser.add_argument('-e','--Ne',type=float,default=20000)
 parser.add_argument('-u','--u',type=float,default=1e-8,help='mut rate per bp per gen')
 parser.add_argument('-r','--r',type=float,default=1e-8,help='per bp recomb rate')
 parser.add_argument('-l','--l',type=int,default=2e5,help='length of locus in bp')
 parser.add_argument('-c','--c',type=float,default=0.01,help='minimum MAF of standing var')
 parser.add_argument('-s','--s',type=float,default=0,help='selection coefficient. only use under Mendelian Inheritance model; do not use this option with --pg!')
 parser.add_argument('--pg',type=float,nargs=2,default=None,help='Use for polygenic selection. arg1 is I, the selection differential on trait; arg2 is k, the num loci. s is random (see e.g. Edge&Coop 2018)')
+parser.add_argument('--af',action='store_true',help='option to simulate ancestral AFR demography (i.e. up to ~51kya)')
 args = parser.parse_args()
 
+
+def afr_burnin():
+	# tjos fimctopm specifies the demography model for ancestral Africa
+	N_AF1 = 14474
+	N_AF0 = 7300
+	t = 3345
+	population_configurations = [
+					msprime.PopulationConfiguration(
+						sample_size=N_AF1, initial_size=N_AF1) ]
+	demographic_events = [
+					msprime.PopulationParametersChange(
+						time=t, initial_size=N_AF0, population_id=0) ]
+	return population_configurations, demographic_events
+
 def throw_mut_on_tree(ts):
+	# this function takes an unmutated tree sequence and "throws" a single mutation onto it, representing
+	# the standing variant in a sweep that starts immediately after burnin
 	global args
 
-	n = args.n
+	if not args.af:
+		n = args.Ne
+	else:
+		n = 2*14474
 	l = args.l
 	r = args.r
 	q = args.q
@@ -46,7 +67,7 @@ def throw_mut_on_tree(ts):
 		        treeloc -= t.branch_length(mut_n)
 		        if treeloc <= 0:
 		            cpicked = t.num_samples(mut_n)/(n)
-		            print(cpicked)
+		            #print(cpicked)
 		            break
 
 	# pick the location on the sequence
@@ -72,40 +93,60 @@ def throw_mut_on_tree(ts):
 	#		#print(i) 
 	#		out_slim_targets.write('%d\n'%(i))	
 	#out_slim_targets.close()
-	print(mut_ts.genotype_matrix())
-	print('%d / %d' %(np.sum(mut_ts.genotype_matrix()),n))
+	if not args.q:
+		print(mut_ts.genotype_matrix())
+		print('%d / %d' %(np.sum(mut_ts.genotype_matrix()),n))
 	freq = np.sum(mut_ts.genotype_matrix())/(n)
 
 	return mut_base, freq, mut_ts 
 
+## this part of the code calls msprime to simulate an "unmutated" tree sequence.
+if not args.af:
+	simulation = msprime.simulate(args.Ne, recombination_rate = args.r, length=args.l, Ne=args.Ne)
+else:
+	population_configurations, demographic_events = afr_burnin()	
+	simulation = msprime.simulate(recombination_rate = args.r, length=args.l, population_configurations=population_configurations, demographic_events=demographic_events, Ne=2*14474)
 
-ts = pyslim.annotate_defaults(msprime.simulate(args.n, recombination_rate = args.r, length=args.l),
+ts = pyslim.annotate_defaults(simulation,
                               model_type="WF", slim_generation=1)
 
+# "throw" a standing variant onto the tree sequence;
+# keep track of where it occurs and its frequency 
 mut_base, freq, mut_ts = throw_mut_on_tree(ts)
 
 # save treeseq 
 mut_ts.dump("%s.trees"%(args.out))
-# save slim command
-#out_slim = open('%s.slim.cmd'%(out),'w')
 basename = args.out
-#out_slim.write('./slim -d \"basename=\'%s\'\" ssv.slim'%(basename))
-#out_slim.close()
 
 s = args.s
 
 c = args.c
-w = np.sum(1/np.arange(np.ceil(args.n*c),np.floor(args.n*(1-c))+1))
+if not args.af:
+	n = args.Ne
+else:
+	n = 2*14474
+
+# polygenic selection options
+w = np.sum(1/np.arange(np.ceil(n*c),np.floor(n*(1-c))+1))
 if args.pg != None:
 	I = args.pg[0]
 	k = args.pg[1]
 	beta = np.random.normal(0,np.sqrt(w/k))	
 	s = beta * I
-	print(I,k,beta,s)
+	if not args.q:	
+		print(I,k,beta,s)
 np.savetxt(basename+'.metadata',np.array([s,freq,mut_base]))
+print(mut_base)
+# output and save slim command to <something>.cmd
+if args.af:
+	tag = 'afr.'
+else:
+	tag = ''
+if not args.q:
+	print('/home/ajstern/slim -d r=%.3e -d l=%d -d u=%.3e -d \"basename=\'%s\'\" -d s=%f -d n=%d ssv.%sslim'%(args.r,args.l,args.u,basename,s,args.n,tag))
 
-print('./slim -d r=%.3e -d l=%d -d u=%.3e -d \"basename=\'%s\'\" -d s=%f ssv.slim'%(args.r,args.l,args.u,basename,s))
-
+out_slim = open(basename+'.slim.cmd','w')
+out_slim.write('/home/ajstern/slim -d r=%.3e -d l=%d -d u=%.3e -d \"basename=\'%s\'\" -d s=%f -d n=%d ssv.%sslim'%(args.r,args.l,args.u,basename,s,args.n,tag))
 
 
 
